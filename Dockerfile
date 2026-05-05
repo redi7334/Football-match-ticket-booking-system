@@ -1,10 +1,8 @@
 # Dockerfile for deploying the Football Match Ticket Booking System
 # to any platform that runs Docker images (Render, Railway, Fly.io, etc.)
 
-# Use a small, official OpenJDK image
 FROM eclipse-temurin:17-jdk-alpine
 
-# Working directory inside the container
 WORKDIR /app
 
 # Copy all Java source files

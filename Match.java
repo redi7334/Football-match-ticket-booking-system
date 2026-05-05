@@ -33,7 +33,6 @@ public class Match {
         this.availableSeats = totalSeats;
     }
 
-    // --- Getters ---
     public int getId() { return id; }
     public Team getHomeTeam() { return homeTeam; }
     public Team getAwayTeam() { return awayTeam; }
@@ -43,7 +42,6 @@ public class Match {
     public int getTotalSeats() { return totalSeats; }
     public int getAvailableSeats() { return availableSeats; }
 
-    // --- Setters (for modifying existing details) ---
     public void setHomeTeam(Team homeTeam) { this.homeTeam = homeTeam; }
     public void setAwayTeam(Team awayTeam) { this.awayTeam = awayTeam; }
     public void setStadium(String stadium) { this.stadium = stadium; }
@@ -60,7 +58,6 @@ public class Match {
         this.availableSeats = totalSeats - sold;
     }
 
-    // --- Behavior ---
     public boolean hasAvailableSeats() {
         return availableSeats > 0;
     }

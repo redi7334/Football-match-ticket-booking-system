@@ -1,6 +1,6 @@
 /**
- * Small helper class for building HTML pages.
- * Provides escaping and a shared page layout (navigation, styling).
+ * HTML rendering helpers: page layout, escaping, and shared CSS.
+ * Keeps WebServer.java focused on routes; visual styling lives here.
  */
 public class Html {
 
@@ -23,74 +23,236 @@ public class Html {
         return sb.toString();
     }
 
-    /** Wrap inner HTML in the shared page layout (header + nav + body). */
+    /** Wrap inner HTML in the shared page layout. */
     public static String page(String title, String body) {
         return "<!DOCTYPE html>\n"
                 + "<html lang=\"en\">\n"
                 + "<head>\n"
                 + "  <meta charset=\"UTF-8\">\n"
-                + "  <title>" + esc(title) + " - Football Tickets</title>\n"
+                + "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+                + "  <title>" + esc(title) + " · MatchTicket</title>\n"
+                + "  <link rel=\"icon\" href=\"" + favicon() + "\">\n"
+                + "  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n"
+                + "  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n"
+                + "  <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap\" rel=\"stylesheet\">\n"
                 + "  <style>" + css() + "</style>\n"
                 + "</head>\n"
                 + "<body>\n"
-                + "  <header>\n"
-                + "    <h1>Football Match Ticket Booking System</h1>\n"
-                + "    <nav>\n"
-                + "      <a href=\"/\">Home</a>\n"
-                + "      <a href=\"/customers\">Customers</a>\n"
-                + "      <a href=\"/teams\">Teams</a>\n"
-                + "      <a href=\"/matches\">Matches</a>\n"
-                + "      <a href=\"/tickets\">Tickets</a>\n"
-                + "      <a href=\"/reports\">Reports</a>\n"
-                + "    </nav>\n"
+                + "  <header class=\"site-header\">\n"
+                + "    <div class=\"site-header-inner\">\n"
+                + "      <a class=\"brand\" href=\"/\">"
+                +        logoSvg()
+                +        "<span class=\"brand-name\">MatchTicket</span>"
+                +      "</a>\n"
+                + "      <nav class=\"site-nav\">\n"
+                + "        <a href=\"/\">Home</a>\n"
+                + "        <a href=\"/customers\">Customers</a>\n"
+                + "        <a href=\"/teams\">Teams</a>\n"
+                + "        <a href=\"/matches\">Matches</a>\n"
+                + "        <a href=\"/tickets\">Tickets</a>\n"
+                + "        <a href=\"/reports\">Reports</a>\n"
+                + "      </nav>\n"
+                + "    </div>\n"
                 + "  </header>\n"
-                + "  <main>\n"
-                + "    <h2>" + esc(title) + "</h2>\n"
-                + body + "\n"
+                + "  <main class=\"site-main\">\n"
+                +      body + "\n"
                 + "  </main>\n"
+                + "  <footer class=\"site-footer\">\n"
+                + "    <div>MatchTicket &middot; Football match ticket booking</div>\n"
+                + "    <div class=\"muted\">Java course project &copy; 2026</div>\n"
+                + "  </footer>\n"
                 + "</body>\n"
                 + "</html>";
     }
 
-    /** Render a simple flash message banner if msg is not null. */
+    /** Page heading used inside the white content card. */
+    public static String heading(String title) {
+        return "<h2 class=\"page-title\">" + esc(title) + "</h2>";
+    }
+
+    /** Render a flash message banner if msg is not blank. */
     public static String flash(String msg, boolean error) {
         if (msg == null || msg.isBlank()) return "";
         String cls = error ? "flash error" : "flash ok";
-        return "<div class=\"" + cls + "\">" + esc(msg) + "</div>";
+        String icon = error ? "&#9888;" : "&#10003;";
+        return "<div class=\"" + cls + "\"><span class=\"flash-icon\">"
+                + icon + "</span>" + esc(msg) + "</div>";
+    }
+
+    /** Coloured pill showing seat availability. */
+    public static String availabilityBadge(int available, int total) {
+        if (available <= 0) {
+            return "<span class=\"badge red\">Sold out</span>";
+        } else if (available <= Math.max(1, total / 5)) {
+            return "<span class=\"badge amber\">Few seats left</span>";
+        } else {
+            return "<span class=\"badge green\">Available</span>";
+        }
+    }
+
+    /** SVG football/soccer ball logo for the header. */
+    private static String logoSvg() {
+        return "<svg class=\"logo\" viewBox=\"0 0 32 32\" xmlns=\"http://www.w3.org/2000/svg\" "
+             + "fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" "
+             + "stroke-linecap=\"round\" stroke-linejoin=\"round\">"
+             + "<circle cx=\"16\" cy=\"16\" r=\"13\" fill=\"#fff\" stroke=\"#0f172a\"/>"
+             + "<polygon points=\"16,9 21,12 19,18 13,18 11,12\" fill=\"#0f172a\"/>"
+             + "<path d=\"M16 3 V9 M16 23 V29 M3 16 H9 M23 16 H29 "
+             + "M21 12 L26 9 M11 12 L6 9 M13 18 L9 23 M19 18 L23 23\" stroke=\"#0f172a\"/>"
+             + "</svg>";
+    }
+
+    /** Inline SVG favicon as a data URL (no extra file needed). */
+    private static String favicon() {
+        String svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>"
+                   + "<circle cx='16' cy='16' r='13' fill='%23fff' stroke='%230f172a' stroke-width='2'/>"
+                   + "<polygon points='16,9 21,12 19,18 13,18 11,12' fill='%230f172a'/>"
+                   + "</svg>";
+        return "data:image/svg+xml," + svg;
     }
 
     /** Inline CSS for the whole site. */
     private static String css() {
-        return "body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f4f6f8;color:#222;}"
-             + "header{background:#1b4d3e;color:#fff;padding:16px 24px;}"
-             + "header h1{margin:0 0 8px;font-size:20px;}"
-             + "nav a{color:#fff;text-decoration:none;margin-right:16px;font-weight:bold;}"
-             + "nav a:hover{text-decoration:underline;}"
-             + "main{max-width:980px;margin:24px auto;background:#fff;padding:24px;"
-             + "border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);}"
-             + "h2{margin-top:0;color:#1b4d3e;}"
-             + "table{width:100%;border-collapse:collapse;margin:12px 0;}"
-             + "th,td{padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:left;}"
-             + "th{background:#f0f4f1;}"
-             + "tr:hover{background:#fafafa;}"
-             + "form.inline{display:inline;}"
-             + "label{display:block;margin:10px 0 4px;font-weight:bold;}"
-             + "input[type=text],input[type=email],input[type=number],input[type=tel],"
-             + "input[type=datetime-local],select{width:100%;max-width:420px;padding:8px;"
-             + "border:1px solid #cbd5e0;border-radius:4px;font-size:14px;}"
-             + "button,.btn{background:#1b4d3e;color:#fff;border:none;padding:8px 16px;"
-             + "border-radius:4px;cursor:pointer;font-size:14px;text-decoration:none;"
-             + "display:inline-block;margin:4px 4px 4px 0;}"
-             + "button:hover,.btn:hover{background:#236654;}"
-             + ".btn.secondary{background:#6b7280;}"
-             + ".btn.danger{background:#b91c1c;}"
-             + ".flash{padding:10px;border-radius:4px;margin-bottom:12px;}"
-             + ".flash.ok{background:#d1fae5;color:#065f46;}"
-             + ".flash.error{background:#fee2e2;color:#991b1b;}"
-             + ".muted{color:#6b7280;font-size:13px;}"
-             + ".cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));"
-             + "gap:12px;margin-top:12px;}"
-             + ".card{background:#f0f4f1;padding:16px;border-radius:6px;}"
-             + ".card .num{font-size:28px;font-weight:bold;color:#1b4d3e;}";
+        return ""
+            // ---- design tokens ----
+            + ":root{"
+            + "--navy:#0f172a;--navy-2:#1e293b;"
+            + "--emerald:#0f766e;--emerald-2:#0d9488;"
+            + "--amber:#f59e0b;--amber-2:#d97706;"
+            + "--green:#10b981;--red:#ef4444;"
+            + "--bg:#f1f5f9;--card:#ffffff;"
+            + "--text:#0f172a;--muted:#64748b;--line:#e2e8f0;"
+            + "--shadow-sm:0 1px 2px rgba(15,23,42,.06);"
+            + "--shadow:0 6px 24px -8px rgba(15,23,42,.18);"
+            + "--shadow-lg:0 12px 40px -10px rgba(15,23,42,.25);"
+            + "--radius:14px;--radius-sm:10px;"
+            + "}"
+            // ---- base ----
+            + "*,*::before,*::after{box-sizing:border-box;}"
+            + "html,body{margin:0;padding:0;}"
+            + "body{font-family:'Inter',-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;"
+                + "background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;"
+                + "-webkit-font-smoothing:antialiased;}"
+            + "a{color:inherit;}"
+            + "h1,h2,h3{margin:0;}"
+            + ".muted{color:var(--muted);}"
+            // ---- header ----
+            + ".site-header{background:linear-gradient(135deg,#0f172a 0%,#0b3b3a 60%,#0f766e 100%);"
+                + "color:#fff;box-shadow:var(--shadow);position:sticky;top:0;z-index:10;}"
+            + ".site-header-inner{max-width:1100px;margin:0 auto;padding:18px 24px;"
+                + "display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}"
+            + ".brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-weight:800;}"
+            + ".brand-name{font-size:18px;letter-spacing:.3px;}"
+            + ".logo{width:30px;height:30px;color:#fff;}"
+            + ".site-nav{display:flex;gap:6px;flex-wrap:wrap;}"
+            + ".site-nav a{color:rgba(255,255,255,.85);text-decoration:none;font-weight:500;font-size:14px;"
+                + "padding:8px 14px;border-radius:999px;transition:background .2s ease,color .2s ease;}"
+            + ".site-nav a:hover{background:rgba(255,255,255,.12);color:#fff;}"
+            // ---- main + footer ----
+            + ".site-main{max-width:1100px;width:100%;margin:28px auto;padding:0 24px;flex:1;}"
+            + ".site-footer{max-width:1100px;margin:32px auto 24px;padding:16px 24px;"
+                + "display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--muted);}"
+            // ---- card / panel ----
+            + ".panel{background:var(--card);border-radius:var(--radius);padding:28px;"
+                + "box-shadow:var(--shadow-sm);border:1px solid var(--line);}"
+            + ".page-title{margin-bottom:18px;font-size:24px;font-weight:700;letter-spacing:-.01em;}"
+            // ---- hero ----
+            + ".hero{position:relative;border-radius:var(--radius);overflow:hidden;"
+                + "background:linear-gradient(135deg,#0f172a 0%,#0b3b3a 50%,#0f766e 100%);"
+                + "color:#fff;padding:48px 36px;margin-bottom:24px;box-shadow:var(--shadow-lg);}"
+            + ".hero::after{content:'';position:absolute;inset:0;pointer-events:none;"
+                + "background:radial-gradient(800px circle at 90% -10%,rgba(245,158,11,.18),transparent 40%),"
+                + "radial-gradient(600px circle at 10% 110%,rgba(16,185,129,.18),transparent 40%);}"
+            + ".hero-eyebrow{display:inline-block;background:rgba(255,255,255,.12);color:#fff;"
+                + "padding:6px 14px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.08em;"
+                + "text-transform:uppercase;margin-bottom:18px;}"
+            + ".hero h1{font-size:42px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-bottom:14px;max-width:680px;}"
+            + ".hero h1 .accent{color:var(--amber);}"
+            + ".hero p{margin:0 0 24px;color:rgba(255,255,255,.78);font-size:16px;max-width:560px;}"
+            + ".hero-actions{display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:1;}"
+            // ---- stat cards ----
+            + ".stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:24px;}"
+            + ".stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);"
+                + "padding:18px;transition:transform .15s ease,box-shadow .15s ease;text-decoration:none;color:inherit;display:block;}"
+            + ".stat:hover{transform:translateY(-2px);box-shadow:var(--shadow);}"
+            + ".stat-label{font-size:13px;color:var(--muted);font-weight:500;}"
+            + ".stat-value{font-size:32px;font-weight:800;color:var(--navy);margin-top:6px;letter-spacing:-.02em;}"
+            // ---- buttons ----
+            + ".btn{display:inline-flex;align-items:center;gap:6px;background:var(--navy);color:#fff;border:none;"
+                + "padding:10px 18px;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;font-weight:600;"
+                + "text-decoration:none;transition:background .15s ease,transform .15s ease,box-shadow .15s ease;"
+                + "font-family:inherit;}"
+            + ".btn:hover{background:var(--navy-2);transform:translateY(-1px);box-shadow:var(--shadow-sm);}"
+            + ".btn.primary{background:var(--amber);color:#0f172a;}"
+            + ".btn.primary:hover{background:var(--amber-2);color:#0f172a;}"
+            + ".btn.secondary{background:#e2e8f0;color:var(--navy);}"
+            + ".btn.secondary:hover{background:#cbd5e1;}"
+            + ".btn.danger{background:var(--red);color:#fff;}"
+            + ".btn.danger:hover{background:#b91c1c;}"
+            + ".btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);}"
+            + ".btn.ghost:hover{background:rgba(255,255,255,.12);}"
+            + ".btn.sm{padding:6px 12px;font-size:13px;}"
+            // ---- tables ----
+            + "table{width:100%;border-collapse:separate;border-spacing:0;margin:16px 0;}"
+            + "thead th{background:#f8fafc;color:var(--muted);font-size:12px;font-weight:600;"
+                + "text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:12px 14px;"
+                + "border-bottom:1px solid var(--line);}"
+            + "tbody td{padding:14px;border-bottom:1px solid var(--line);font-size:14px;}"
+            + "tbody tr:hover{background:#f8fafc;}"
+            + "tbody tr:last-child td{border-bottom:none;}"
+            // ---- forms ----
+            + "label{display:block;margin:14px 0 6px;font-weight:600;font-size:13px;color:var(--navy);}"
+            + "input[type=text],input[type=email],input[type=number],input[type=tel],"
+            + "input[type=datetime-local],select,textarea{width:100%;max-width:480px;padding:10px 12px;"
+                + "border:1px solid var(--line);border-radius:var(--radius-sm);font-size:14px;"
+                + "background:#fff;color:var(--text);font-family:inherit;"
+                + "transition:border-color .15s ease,box-shadow .15s ease;}"
+            + "input:focus,select:focus,textarea:focus{outline:none;border-color:var(--emerald);"
+                + "box-shadow:0 0 0 3px rgba(15,118,110,.15);}"
+            + "form.inline{display:inline;}"
+            + ".form-actions{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap;}"
+            // ---- flash messages ----
+            + ".flash{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-sm);"
+                + "margin-bottom:16px;font-size:14px;font-weight:500;}"
+            + ".flash.ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;}"
+            + ".flash.error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;}"
+            + ".flash-icon{font-size:18px;}"
+            // ---- badges ----
+            + ".badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;"
+                + "font-weight:600;letter-spacing:.02em;}"
+            + ".badge.green{background:#d1fae5;color:#065f46;}"
+            + ".badge.amber{background:#fef3c7;color:#92400e;}"
+            + ".badge.red{background:#fee2e2;color:#991b1b;}"
+            // ---- match cards (ticket style) ----
+            + ".match-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px;margin-top:18px;}"
+            + ".ticket{position:relative;background:var(--card);border-radius:var(--radius);"
+                + "border:1px solid var(--line);padding:22px;display:flex;flex-direction:column;gap:14px;"
+                + "transition:transform .15s ease,box-shadow .15s ease;overflow:hidden;}"
+            + ".ticket:hover{transform:translateY(-3px);box-shadow:var(--shadow);}"
+            + ".ticket::before{content:'';position:absolute;top:50%;left:-12px;width:24px;height:24px;"
+                + "background:var(--bg);border-radius:50%;transform:translateY(-50%);}"
+            + ".ticket::after{content:'';position:absolute;top:50%;right:-12px;width:24px;height:24px;"
+                + "background:var(--bg);border-radius:50%;transform:translateY(-50%);}"
+            + ".ticket-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}"
+            + ".ticket-id{font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}"
+            + ".ticket-teams{display:flex;align-items:center;gap:14px;font-weight:700;font-size:18px;"
+                + "letter-spacing:-.01em;color:var(--navy);}"
+            + ".ticket-vs{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.15em;"
+                + "background:#f1f5f9;padding:3px 8px;border-radius:6px;font-weight:600;}"
+            + ".ticket-meta{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:13px;}"
+            + ".ticket-meta .label{font-weight:600;color:var(--navy);}"
+            + ".ticket-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px dashed var(--line);"
+                + "padding-top:14px;margin-top:auto;}"
+            + ".ticket-price{font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-.02em;}"
+            + ".ticket-price small{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}"
+            // ---- empty state ----
+            + ".empty{text-align:center;padding:48px 20px;color:var(--muted);}"
+            + ".empty-icon{font-size:48px;margin-bottom:8px;opacity:.5;}"
+            + ".empty h3{color:var(--navy);font-weight:700;font-size:18px;margin-bottom:4px;}"
+            // ---- responsive ----
+            + "@media (max-width:640px){.hero{padding:32px 24px;}.hero h1{font-size:30px;}"
+                + ".site-header-inner{padding:14px 16px;}.site-main{padding:0 16px;}.panel{padding:18px;}"
+                + ".site-nav a{padding:6px 10px;font-size:13px;}"
+                + ".ticket-teams{font-size:16px;}}";
     }
 }

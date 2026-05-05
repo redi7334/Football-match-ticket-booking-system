@@ -48,7 +48,6 @@ public class BookingSystem {
     public boolean removeCustomer(int id) {
         Customer c = findCustomerById(id);
         if (c == null) return false;
-        // also remove their tickets and free up seats
         List<Ticket> toRemove = new ArrayList<>();
         for (Ticket t : tickets) {
             if (t.getCustomer().getId() == id) {
@@ -133,7 +132,6 @@ public class BookingSystem {
     public boolean removeMatch(int id) {
         Match m = findMatchById(id);
         if (m == null) return false;
-        // also remove tickets associated with this match
         tickets.removeIf(t -> t.getMatch().getId() == id);
         return matches.remove(m);
     }
@@ -162,8 +160,7 @@ public class BookingSystem {
         if (!m.hasAvailableSeats()) {
             throw new IllegalStateException("No seats available for this match.");
         }
-        // Compute next seat number based on the highest seat already assigned
-        // for this match (so cancellations don't produce duplicates).
+        // Compute next seat number from the highest seat already assigned for this match
         int maxSeat = 0;
         for (Ticket existing : tickets) {
             if (existing.getMatch().getId() == m.getId()
@@ -210,7 +207,7 @@ public class BookingSystem {
     }
 
     // ============================================================
-    // SAMPLE DATA (helpful for testing the menu)
+    // SAMPLE DATA
     // ============================================================
 
     public void loadSampleData() {

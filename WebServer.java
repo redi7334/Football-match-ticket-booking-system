@@ -1,5 +1,4 @@
 import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
@@ -11,7 +10,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,13 +33,12 @@ public class WebServer {
     public void start() throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
 
-        // Routes
-        server.createContext("/",                  this::home);
-        server.createContext("/customers",         this::customers);
-        server.createContext("/teams",             this::teams);
-        server.createContext("/matches",           this::matches);
-        server.createContext("/tickets",           this::tickets);
-        server.createContext("/reports",           this::reports);
+        server.createContext("/",          this::home);
+        server.createContext("/customers", this::customers);
+        server.createContext("/teams",     this::teams);
+        server.createContext("/matches",   this::matches);
+        server.createContext("/tickets",   this::tickets);
+        server.createContext("/reports",   this::reports);
 
         server.setExecutor(null);
         server.start();
@@ -51,34 +48,51 @@ public class WebServer {
     }
 
     // ============================================================
-    // ROUTE HANDLERS
+    // HOME
     // ============================================================
 
     private void home(HttpExchange ex) throws IOException {
         if (!ex.getRequestURI().getPath().equals("/")) {
-            // Anything not matched by other contexts → 404
             sendNotFound(ex);
             return;
         }
+        int customers = system.getAllCustomers().size();
+        int teams = system.getAllTeams().size();
+        int upcoming = system.getAvailableMatches().size();
+        int sold = system.getAllTickets().size();
+        double revenue = system.getTotalRevenue();
+
         String body =
-                "<p>Welcome to the Football Match Ticket Booking System.</p>"
-              + "<div class=\"cards\">"
-              + card("Customers", system.getAllCustomers().size(), "/customers")
-              + card("Teams",     system.getAllTeams().size(),     "/teams")
-              + card("Matches",   system.getAllMatches().size(),   "/matches")
-              + card("Tickets",   system.getAllTickets().size(),   "/tickets")
-              + "</div>"
-              + "<p class=\"muted\">Use the navigation above to manage data.</p>";
+                  "<section class=\"hero\">"
+                + "  <span class=\"hero-eyebrow\">Football Tickets</span>"
+                + "  <h1>Book your seat for the <span class=\"accent\">next big match</span>.</h1>"
+                + "  <p>Manage customers, teams, fixtures, and bookings — all in one place.</p>"
+                + "  <div class=\"hero-actions\">"
+                + "    <a class=\"btn primary\" href=\"/tickets/book\">Book a ticket</a>"
+                + "    <a class=\"btn ghost\" href=\"/matches\">Browse matches</a>"
+                + "  </div>"
+                + "</section>"
+                + "<div class=\"stat-grid\">"
+                + statCard("Customers", customers, "/customers")
+                + statCard("Teams", teams, "/teams")
+                + statCard("Upcoming matches", upcoming, "/matches")
+                + statCard("Tickets sold", sold, "/tickets")
+                + statCard("Revenue", String.format("%.0f", revenue), "/reports")
+                + "</div>";
         sendHtml(ex, Html.page("Home", body));
     }
 
-    private String card(String title, int n, String href) {
-        return "<a class=\"card\" href=\"" + href + "\" style=\"text-decoration:none;color:inherit;\">"
-             + "<div>" + Html.esc(title) + "</div>"
-             + "<div class=\"num\">" + n + "</div></a>";
+    private String statCard(String label, Object value, String href) {
+        return "<a class=\"stat\" href=\"" + href + "\">"
+             + "<div class=\"stat-label\">" + Html.esc(label) + "</div>"
+             + "<div class=\"stat-value\">" + Html.esc(value) + "</div>"
+             + "</a>";
     }
 
-    // ----- Customers -----
+    // ============================================================
+    // CUSTOMERS
+    // ============================================================
+
     private void customers(HttpExchange ex) throws IOException {
         String path = ex.getRequestURI().getPath();
         String method = ex.getRequestMethod();
@@ -88,17 +102,16 @@ public class WebServer {
             if (path.equals("/customers") && method.equals("GET")) {
                 sendHtml(ex, customersListPage(q.get("msg"), "true".equals(q.get("err"))));
             } else if (path.equals("/customers/new") && method.equals("GET")) {
-                sendHtml(ex, customerFormPage(null, null, false));
+                sendHtml(ex, customerFormPage(null, false));
             } else if (path.equals("/customers/create") && method.equals("POST")) {
                 Map<String,String> form = parseForm(ex);
                 system.registerCustomer(form.getOrDefault("name",""),
-                        form.getOrDefault("email",""),
-                        form.getOrDefault("phone",""));
+                        form.getOrDefault("email",""), form.getOrDefault("phone",""));
                 redirect(ex, "/customers?msg=Customer+registered");
             } else if (path.equals("/customers/edit") && method.equals("GET")) {
                 Customer c = system.findCustomerById(parseInt(q.get("id"), -1));
                 if (c == null) { redirect(ex, "/customers?msg=Customer+not+found&err=true"); return; }
-                sendHtml(ex, customerFormPage(c, null, true));
+                sendHtml(ex, customerFormPage(c, true));
             } else if (path.equals("/customers/update") && method.equals("POST")) {
                 Map<String,String> form = parseForm(ex);
                 int id = parseInt(form.get("id"), -1);
@@ -123,50 +136,56 @@ public class WebServer {
         StringBuilder rows = new StringBuilder();
         for (Customer c : system.getAllCustomers()) {
             rows.append("<tr>")
-                .append("<td>").append(c.getId()).append("</td>")
-                .append("<td>").append(Html.esc(c.getName())).append("</td>")
+                .append("<td>#").append(c.getId()).append("</td>")
+                .append("<td><strong>").append(Html.esc(c.getName())).append("</strong></td>")
                 .append("<td>").append(Html.esc(c.getEmail())).append("</td>")
                 .append("<td>").append(Html.esc(c.getPhone())).append("</td>")
                 .append("<td>")
-                .append("<a class=\"btn secondary\" href=\"/customers/edit?id=").append(c.getId()).append("\">Edit</a>")
+                .append("<a class=\"btn secondary sm\" href=\"/customers/edit?id=").append(c.getId()).append("\">Edit</a> ")
                 .append("<form class=\"inline\" method=\"POST\" action=\"/customers/delete\" "
                       + "onsubmit=\"return confirm('Delete customer?');\">")
                 .append("<input type=\"hidden\" name=\"id\" value=\"").append(c.getId()).append("\">")
-                .append("<button class=\"btn danger\" type=\"submit\">Delete</button>")
+                .append("<button class=\"btn danger sm\" type=\"submit\">Delete</button>")
                 .append("</form>")
                 .append("</td></tr>");
         }
-        String body = Html.flash(msg, err)
-                + "<a class=\"btn\" href=\"/customers/new\">+ New Customer</a>"
-                + "<table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Actions</th></tr></thead>"
-                + "<tbody>" + (rows.length() == 0
-                        ? "<tr><td colspan=\"5\" class=\"muted\">No customers yet.</td></tr>"
-                        : rows.toString())
-                + "</tbody></table>";
+        String table = rows.length() == 0
+                ? emptyState("No customers yet", "Register your first customer to get started.", "/customers/new", "Register customer")
+                : "<table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Actions</th></tr></thead>"
+                  + "<tbody>" + rows + "</tbody></table>";
+        String body = "<div class=\"panel\">"
+                + Html.heading("Customers")
+                + Html.flash(msg, err)
+                + "<a class=\"btn primary\" href=\"/customers/new\">+ New customer</a>"
+                + table
+                + "</div>";
         return Html.page("Customers", body);
     }
 
-    private String customerFormPage(Customer c, String error, boolean editing) {
+    private String customerFormPage(Customer c, boolean editing) {
         String action = editing ? "/customers/update" : "/customers/create";
-        String idField = editing
-                ? "<input type=\"hidden\" name=\"id\" value=\"" + c.getId() + "\">" : "";
+        String idField = editing ? "<input type=\"hidden\" name=\"id\" value=\"" + c.getId() + "\">" : "";
         String name  = editing ? Html.esc(c.getName())  : "";
         String email = editing ? Html.esc(c.getEmail()) : "";
         String phone = editing ? Html.esc(c.getPhone()) : "";
-        String body = Html.flash(error, true)
+        String body = "<div class=\"panel\">"
+                + Html.heading(editing ? "Edit customer" : "New customer")
                 + "<form method=\"POST\" action=\"" + action + "\">"
                 + idField
-                + "<label>Name</label><input type=\"text\" name=\"name\" required value=\"" + name + "\">"
+                + "<label>Full name</label><input type=\"text\" name=\"name\" required value=\"" + name + "\">"
                 + "<label>Email</label><input type=\"email\" name=\"email\" required value=\"" + email + "\">"
                 + "<label>Phone</label><input type=\"tel\" name=\"phone\" required value=\"" + phone + "\">"
-                + "<div style=\"margin-top:16px;\">"
-                + "<button type=\"submit\">" + (editing ? "Update" : "Register") + "</button>"
+                + "<div class=\"form-actions\">"
+                + "<button class=\"btn primary\" type=\"submit\">" + (editing ? "Save changes" : "Register") + "</button>"
                 + "<a class=\"btn secondary\" href=\"/customers\">Cancel</a>"
-                + "</div></form>";
+                + "</div></form></div>";
         return Html.page(editing ? "Edit Customer" : "New Customer", body);
     }
 
-    // ----- Teams -----
+    // ============================================================
+    // TEAMS
+    // ============================================================
+
     private void teams(HttpExchange ex) throws IOException {
         String path = ex.getRequestURI().getPath();
         String method = ex.getRequestMethod();
@@ -176,7 +195,7 @@ public class WebServer {
             if (path.equals("/teams") && method.equals("GET")) {
                 sendHtml(ex, teamsListPage(q.get("msg"), "true".equals(q.get("err"))));
             } else if (path.equals("/teams/new") && method.equals("GET")) {
-                sendHtml(ex, teamFormPage(null, null, false));
+                sendHtml(ex, teamFormPage(null, false));
             } else if (path.equals("/teams/create") && method.equals("POST")) {
                 Map<String,String> form = parseForm(ex);
                 system.registerTeam(form.getOrDefault("name",""), form.getOrDefault("city",""));
@@ -184,7 +203,7 @@ public class WebServer {
             } else if (path.equals("/teams/edit") && method.equals("GET")) {
                 Team t = system.findTeamById(parseInt(q.get("id"), -1));
                 if (t == null) { redirect(ex, "/teams?msg=Team+not+found&err=true"); return; }
-                sendHtml(ex, teamFormPage(t, null, true));
+                sendHtml(ex, teamFormPage(t, true));
             } else if (path.equals("/teams/update") && method.equals("POST")) {
                 Map<String,String> form = parseForm(ex);
                 int id = parseInt(form.get("id"), -1);
@@ -203,40 +222,47 @@ public class WebServer {
         StringBuilder rows = new StringBuilder();
         for (Team t : system.getAllTeams()) {
             rows.append("<tr>")
-                .append("<td>").append(t.getId()).append("</td>")
-                .append("<td>").append(Html.esc(t.getName())).append("</td>")
+                .append("<td>#").append(t.getId()).append("</td>")
+                .append("<td><strong>").append(Html.esc(t.getName())).append("</strong></td>")
                 .append("<td>").append(Html.esc(t.getCity())).append("</td>")
-                .append("<td><a class=\"btn secondary\" href=\"/teams/edit?id=").append(t.getId()).append("\">Edit</a></td>")
+                .append("<td><a class=\"btn secondary sm\" href=\"/teams/edit?id=").append(t.getId()).append("\">Edit</a></td>")
                 .append("</tr>");
         }
-        String body = Html.flash(msg, err)
-                + "<a class=\"btn\" href=\"/teams/new\">+ New Team</a>"
-                + "<table><thead><tr><th>ID</th><th>Name</th><th>City</th><th>Actions</th></tr></thead>"
-                + "<tbody>" + (rows.length() == 0
-                        ? "<tr><td colspan=\"4\" class=\"muted\">No teams yet.</td></tr>"
-                        : rows.toString())
-                + "</tbody></table>";
+        String table = rows.length() == 0
+                ? emptyState("No teams yet", "Add the teams that will play in your matches.", "/teams/new", "Add team")
+                : "<table><thead><tr><th>ID</th><th>Name</th><th>City</th><th>Actions</th></tr></thead>"
+                  + "<tbody>" + rows + "</tbody></table>";
+        String body = "<div class=\"panel\">"
+                + Html.heading("Teams")
+                + Html.flash(msg, err)
+                + "<a class=\"btn primary\" href=\"/teams/new\">+ New team</a>"
+                + table
+                + "</div>";
         return Html.page("Teams", body);
     }
 
-    private String teamFormPage(Team t, String error, boolean editing) {
+    private String teamFormPage(Team t, boolean editing) {
         String action = editing ? "/teams/update" : "/teams/create";
         String idField = editing ? "<input type=\"hidden\" name=\"id\" value=\"" + t.getId() + "\">" : "";
         String name = editing ? Html.esc(t.getName()) : "";
         String city = editing ? Html.esc(t.getCity()) : "";
-        String body = Html.flash(error, true)
+        String body = "<div class=\"panel\">"
+                + Html.heading(editing ? "Edit team" : "New team")
                 + "<form method=\"POST\" action=\"" + action + "\">"
                 + idField
                 + "<label>Team name</label><input type=\"text\" name=\"name\" required value=\"" + name + "\">"
                 + "<label>City</label><input type=\"text\" name=\"city\" required value=\"" + city + "\">"
-                + "<div style=\"margin-top:16px;\">"
-                + "<button type=\"submit\">" + (editing ? "Update" : "Register") + "</button>"
+                + "<div class=\"form-actions\">"
+                + "<button class=\"btn primary\" type=\"submit\">" + (editing ? "Save changes" : "Register") + "</button>"
                 + "<a class=\"btn secondary\" href=\"/teams\">Cancel</a>"
-                + "</div></form>";
+                + "</div></form></div>";
         return Html.page(editing ? "Edit Team" : "New Team", body);
     }
 
-    // ----- Matches -----
+    // ============================================================
+    // MATCHES (ticket-style cards)
+    // ============================================================
+
     private void matches(HttpExchange ex) throws IOException {
         String path = ex.getRequestURI().getPath();
         String method = ex.getRequestMethod();
@@ -246,7 +272,7 @@ public class WebServer {
             if (path.equals("/matches") && method.equals("GET")) {
                 sendHtml(ex, matchesListPage(q.get("msg"), "true".equals(q.get("err"))));
             } else if (path.equals("/matches/new") && method.equals("GET")) {
-                sendHtml(ex, matchFormPage(null, null, false));
+                sendHtml(ex, matchFormPage(null, false));
             } else if (path.equals("/matches/create") && method.equals("POST")) {
                 Map<String,String> form = parseForm(ex);
                 int homeId = parseInt(form.get("homeTeamId"), -1);
@@ -259,7 +285,7 @@ public class WebServer {
             } else if (path.equals("/matches/edit") && method.equals("GET")) {
                 Match m = system.findMatchById(parseInt(q.get("id"), -1));
                 if (m == null) { redirect(ex, "/matches?msg=Match+not+found&err=true"); return; }
-                sendHtml(ex, matchFormPage(m, null, true));
+                sendHtml(ex, matchFormPage(m, true));
             } else if (path.equals("/matches/update") && method.equals("POST")) {
                 Map<String,String> form = parseForm(ex);
                 int id = parseInt(form.get("id"), -1);
@@ -286,41 +312,58 @@ public class WebServer {
     }
 
     private String matchesListPage(String msg, boolean err) {
-        StringBuilder rows = new StringBuilder();
+        StringBuilder cards = new StringBuilder();
         for (Match m : system.getAllMatches()) {
-            rows.append("<tr>")
-                .append("<td>").append(m.getId()).append("</td>")
-                .append("<td>").append(Html.esc(m.getHomeTeam().getName()))
-                .append(" vs ").append(Html.esc(m.getAwayTeam().getName())).append("</td>")
-                .append("<td>").append(Html.esc(m.getStadium())).append("</td>")
-                .append("<td>").append(Html.esc(m.getDateTime().format(DT_DISPLAY))).append("</td>")
-                .append("<td>").append(String.format("%.2f", m.getTicketPrice())).append("</td>")
-                .append("<td>").append(m.getAvailableSeats()).append(" / ").append(m.getTotalSeats()).append("</td>")
-                .append("<td>")
-                .append("<a class=\"btn secondary\" href=\"/matches/edit?id=").append(m.getId()).append("\">Edit</a>")
-                .append("<form class=\"inline\" method=\"POST\" action=\"/matches/delete\" "
-                      + "onsubmit=\"return confirm('Delete match?');\">")
-                .append("<input type=\"hidden\" name=\"id\" value=\"").append(m.getId()).append("\">")
-                .append("<button class=\"btn danger\" type=\"submit\">Delete</button>")
-                .append("</form>")
-                .append("</td></tr>");
+            cards.append(matchCard(m));
         }
-        String body = Html.flash(msg, err)
-                + "<a class=\"btn\" href=\"/matches/new\">+ New Match</a>"
-                + "<table><thead><tr><th>ID</th><th>Match</th><th>Stadium</th><th>Date</th>"
-                + "<th>Price</th><th>Seats</th><th>Actions</th></tr></thead>"
-                + "<tbody>" + (rows.length() == 0
-                        ? "<tr><td colspan=\"7\" class=\"muted\">No matches yet.</td></tr>"
-                        : rows.toString())
-                + "</tbody></table>";
+        String content = cards.length() == 0
+                ? emptyState("No matches yet", "Schedule your first fixture to start selling tickets.", "/matches/new", "Schedule match")
+                : "<div class=\"match-grid\">" + cards + "</div>";
+
+        String body = "<div class=\"panel\">"
+                + Html.heading("Matches")
+                + Html.flash(msg, err)
+                + "<a class=\"btn primary\" href=\"/matches/new\">+ New match</a>"
+                + content
+                + "</div>";
         return Html.page("Matches", body);
     }
 
-    private String matchFormPage(Match m, String error, boolean editing) {
+    private String matchCard(Match m) {
+        return "<article class=\"ticket\">"
+             + "  <div class=\"ticket-head\">"
+             + "    <span class=\"ticket-id\">Match #" + m.getId() + "</span>"
+             +      Html.availabilityBadge(m.getAvailableSeats(), m.getTotalSeats())
+             + "  </div>"
+             + "  <div class=\"ticket-teams\">"
+             +      Html.esc(m.getHomeTeam().getName())
+             + "    <span class=\"ticket-vs\">vs</span>"
+             +      Html.esc(m.getAwayTeam().getName())
+             + "  </div>"
+             + "  <div class=\"ticket-meta\">"
+             + "    <span><span class=\"label\">Stadium:</span> " + Html.esc(m.getStadium()) + "</span>"
+             + "    <span><span class=\"label\">Kick-off:</span> " + Html.esc(m.getDateTime().format(DT_DISPLAY)) + "</span>"
+             + "    <span><span class=\"label\">Seats:</span> " + m.getAvailableSeats() + " / " + m.getTotalSeats() + "</span>"
+             + "  </div>"
+             + "  <div class=\"ticket-foot\">"
+             + "    <div class=\"ticket-price\">" + String.format("%.2f", m.getTicketPrice())
+             +      " <small>per seat</small></div>"
+             + "    <div>"
+             + "      <a class=\"btn secondary sm\" href=\"/matches/edit?id=" + m.getId() + "\">Edit</a> "
+             + "      <form class=\"inline\" method=\"POST\" action=\"/matches/delete\" "
+             +        "onsubmit=\"return confirm('Delete match?');\">"
+             + "        <input type=\"hidden\" name=\"id\" value=\"" + m.getId() + "\">"
+             + "        <button class=\"btn danger sm\" type=\"submit\">Delete</button>"
+             + "      </form>"
+             + "    </div>"
+             + "  </div>"
+             + "</article>";
+    }
+
+    private String matchFormPage(Match m, boolean editing) {
         String action = editing ? "/matches/update" : "/matches/create";
         String idField = editing ? "<input type=\"hidden\" name=\"id\" value=\"" + m.getId() + "\">" : "";
 
-        // Team selectors
         StringBuilder homeOptions = new StringBuilder();
         StringBuilder awayOptions = new StringBuilder();
         for (Team t : system.getAllTeams()) {
@@ -337,23 +380,27 @@ public class WebServer {
         String price = editing ? String.format("%.2f", m.getTicketPrice()) : "";
         String seats = editing ? String.valueOf(m.getTotalSeats()) : "";
 
-        String body = Html.flash(error, true)
+        String body = "<div class=\"panel\">"
+                + Html.heading(editing ? "Edit match" : "New match")
                 + "<form method=\"POST\" action=\"" + action + "\">"
                 + idField
                 + (editing ? "" : "<label>Home team</label><select name=\"homeTeamId\" required>" + homeOptions + "</select>")
                 + (editing ? "" : "<label>Away team</label><select name=\"awayTeamId\" required>" + awayOptions + "</select>")
                 + "<label>Stadium</label><input type=\"text\" name=\"stadium\" required value=\"" + stadium + "\">"
-                + "<label>Date and time</label><input type=\"datetime-local\" name=\"dateTime\" required value=\"" + dateValue + "\">"
+                + "<label>Kick-off (date and time)</label><input type=\"datetime-local\" name=\"dateTime\" required value=\"" + dateValue + "\">"
                 + "<label>Ticket price</label><input type=\"number\" step=\"0.01\" min=\"0\" name=\"price\" required value=\"" + price + "\">"
                 + "<label>Total seats</label><input type=\"number\" min=\"1\" name=\"totalSeats\" required value=\"" + seats + "\">"
-                + "<div style=\"margin-top:16px;\">"
-                + "<button type=\"submit\">" + (editing ? "Update" : "Register") + "</button>"
+                + "<div class=\"form-actions\">"
+                + "<button class=\"btn primary\" type=\"submit\">" + (editing ? "Save changes" : "Register match") + "</button>"
                 + "<a class=\"btn secondary\" href=\"/matches\">Cancel</a>"
-                + "</div></form>";
+                + "</div></form></div>";
         return Html.page(editing ? "Edit Match" : "New Match", body);
     }
 
-    // ----- Tickets -----
+    // ============================================================
+    // TICKETS
+    // ============================================================
+
     private void tickets(HttpExchange ex) throws IOException {
         String path = ex.getRequestURI().getPath();
         String method = ex.getRequestMethod();
@@ -363,7 +410,7 @@ public class WebServer {
             if (path.equals("/tickets") && method.equals("GET")) {
                 sendHtml(ex, ticketsListPage(q.get("msg"), "true".equals(q.get("err"))));
             } else if (path.equals("/tickets/book") && method.equals("GET")) {
-                sendHtml(ex, bookTicketFormPage(null));
+                sendHtml(ex, bookTicketFormPage());
             } else if (path.equals("/tickets/create") && method.equals("POST")) {
                 Map<String,String> form = parseForm(ex);
                 int customerId = parseInt(form.get("customerId"), -1);
@@ -389,9 +436,9 @@ public class WebServer {
         StringBuilder rows = new StringBuilder();
         for (Ticket t : system.getAllTickets()) {
             rows.append("<tr>")
-                .append("<td>").append(t.getId()).append("</td>")
-                .append("<td>").append(Html.esc(t.getMatch().getHomeTeam().getName()))
-                .append(" vs ").append(Html.esc(t.getMatch().getAwayTeam().getName())).append("</td>")
+                .append("<td>#").append(t.getId()).append("</td>")
+                .append("<td><strong>").append(Html.esc(t.getMatch().getHomeTeam().getName()))
+                .append("</strong> vs <strong>").append(Html.esc(t.getMatch().getAwayTeam().getName())).append("</strong></td>")
                 .append("<td>").append(t.getSeatNumber()).append("</td>")
                 .append("<td>").append(Html.esc(t.getCustomer().getName())).append("</td>")
                 .append("<td>").append(String.format("%.2f", t.getPrice())).append("</td>")
@@ -400,22 +447,43 @@ public class WebServer {
                 .append("<form class=\"inline\" method=\"POST\" action=\"/tickets/cancel\" "
                       + "onsubmit=\"return confirm('Cancel ticket?');\">")
                 .append("<input type=\"hidden\" name=\"id\" value=\"").append(t.getId()).append("\">")
-                .append("<button class=\"btn danger\" type=\"submit\">Cancel</button>")
+                .append("<button class=\"btn danger sm\" type=\"submit\">Cancel</button>")
                 .append("</form>")
                 .append("</td></tr>");
         }
-        String body = Html.flash(msg, err)
-                + "<a class=\"btn\" href=\"/tickets/book\">+ Book Ticket</a>"
-                + "<table><thead><tr><th>ID</th><th>Match</th><th>Seat</th>"
-                + "<th>Customer</th><th>Price</th><th>Booked</th><th>Actions</th></tr></thead>"
-                + "<tbody>" + (rows.length() == 0
-                        ? "<tr><td colspan=\"7\" class=\"muted\">No tickets booked yet.</td></tr>"
-                        : rows.toString())
-                + "</tbody></table>";
+        String table = rows.length() == 0
+                ? emptyState("No tickets booked yet", "Book your first ticket to see it appear here.", "/tickets/book", "Book a ticket")
+                : "<table><thead><tr><th>ID</th><th>Match</th><th>Seat</th>"
+                  + "<th>Customer</th><th>Price</th><th>Booked</th><th>Actions</th></tr></thead>"
+                  + "<tbody>" + rows + "</tbody></table>";
+
+        String body = "<div class=\"panel\">"
+                + Html.heading("Tickets")
+                + Html.flash(msg, err)
+                + "<a class=\"btn primary\" href=\"/tickets/book\">+ Book ticket</a>"
+                + table
+                + "</div>";
         return Html.page("Tickets", body);
     }
 
-    private String bookTicketFormPage(String error) {
+    private String bookTicketFormPage() {
+        if (system.getAllCustomers().isEmpty()) {
+            return Html.page("Book Ticket",
+                    "<div class=\"panel\">" + Html.heading("Book a ticket")
+                  + emptyState("No customers registered",
+                        "You need at least one customer before you can book a ticket.",
+                        "/customers/new", "Register customer")
+                  + "</div>");
+        }
+        if (system.getAvailableMatches().isEmpty()) {
+            return Html.page("Book Ticket",
+                    "<div class=\"panel\">" + Html.heading("Book a ticket")
+                  + emptyState("No matches available",
+                        "All matches are sold out, or none are scheduled yet.",
+                        "/matches/new", "Schedule a match")
+                  + "</div>");
+        }
+
         StringBuilder customerOptions = new StringBuilder();
         for (Customer c : system.getAllCustomers()) {
             customerOptions.append("<option value=\"").append(c.getId()).append("\">")
@@ -426,54 +494,53 @@ public class WebServer {
         for (Match m : system.getAvailableMatches()) {
             matchOptions.append("<option value=\"").append(m.getId()).append("\">")
                         .append(Html.esc(m.getHomeTeam().getName())).append(" vs ")
-                        .append(Html.esc(m.getAwayTeam().getName())).append(" - ")
+                        .append(Html.esc(m.getAwayTeam().getName())).append(" — ")
                         .append(Html.esc(m.getDateTime().format(DT_DISPLAY))).append(" (")
                         .append(m.getAvailableSeats()).append(" seats)").append("</option>");
         }
 
-        if (system.getAllCustomers().isEmpty()) {
-            return Html.page("Book Ticket",
-                    "<p class=\"muted\">No customers registered. "
-                  + "<a href=\"/customers/new\">Register one first</a>.</p>");
-        }
-        if (system.getAvailableMatches().isEmpty()) {
-            return Html.page("Book Ticket",
-                    "<p class=\"muted\">No matches with available seats. "
-                  + "<a href=\"/matches/new\">Add one first</a>.</p>");
-        }
-
-        String body = Html.flash(error, true)
+        String body = "<div class=\"panel\">"
+                + Html.heading("Book a ticket")
                 + "<form method=\"POST\" action=\"/tickets/create\">"
                 + "<label>Customer</label><select name=\"customerId\" required>" + customerOptions + "</select>"
                 + "<label>Match</label><select name=\"matchId\" required>" + matchOptions + "</select>"
-                + "<div style=\"margin-top:16px;\">"
-                + "<button type=\"submit\">Book Ticket</button>"
+                + "<div class=\"form-actions\">"
+                + "<button class=\"btn primary\" type=\"submit\">Confirm booking</button>"
                 + "<a class=\"btn secondary\" href=\"/tickets\">Cancel</a>"
-                + "</div></form>";
+                + "</div></form></div>";
         return Html.page("Book Ticket", body);
     }
 
-    // ----- Reports -----
+    // ============================================================
+    // REPORTS
+    // ============================================================
+
     private void reports(HttpExchange ex) throws IOException {
-        String body =
-                "<div class=\"cards\">"
-              + "<div class=\"card\"><div>Customers</div><div class=\"num\">"
-                  + system.getAllCustomers().size() + "</div></div>"
-              + "<div class=\"card\"><div>Teams</div><div class=\"num\">"
-                  + system.getAllTeams().size() + "</div></div>"
-              + "<div class=\"card\"><div>Matches</div><div class=\"num\">"
-                  + system.getAllMatches().size() + "</div></div>"
-              + "<div class=\"card\"><div>Tickets sold</div><div class=\"num\">"
-                  + system.getAllTickets().size() + "</div></div>"
-              + "<div class=\"card\"><div>Total revenue</div><div class=\"num\">"
-                  + String.format("%.2f", system.getTotalRevenue()) + "</div></div>"
-              + "</div>";
+        String body = "<div class=\"panel\">"
+                + Html.heading("Reports")
+                + "<p class=\"muted\">A snapshot of the booking system at this moment.</p>"
+                + "<div class=\"stat-grid\">"
+                + statCard("Customers", system.getAllCustomers().size(), "/customers")
+                + statCard("Teams", system.getAllTeams().size(), "/teams")
+                + statCard("Matches", system.getAllMatches().size(), "/matches")
+                + statCard("Tickets sold", system.getAllTickets().size(), "/tickets")
+                + statCard("Total revenue", String.format("%.2f", system.getTotalRevenue()), "/reports")
+                + "</div></div>";
         sendHtml(ex, Html.page("Reports", body));
     }
 
     // ============================================================
-    // HTTP UTILITIES
+    // HELPERS
     // ============================================================
+
+    private String emptyState(String title, String subtitle, String href, String cta) {
+        return "<div class=\"empty\">"
+             + "<div class=\"empty-icon\">&#9917;</div>"
+             + "<h3>" + Html.esc(title) + "</h3>"
+             + "<p>" + Html.esc(subtitle) + "</p>"
+             + "<a class=\"btn primary\" href=\"" + href + "\">" + Html.esc(cta) + "</a>"
+             + "</div>";
+    }
 
     private void sendHtml(HttpExchange ex, String html) throws IOException {
         byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
@@ -484,8 +551,11 @@ public class WebServer {
     }
 
     private void sendNotFound(HttpExchange ex) throws IOException {
-        byte[] bytes = Html.page("Not Found", "<p>The requested page was not found.</p>")
-                .getBytes(StandardCharsets.UTF_8);
+        String body = "<div class=\"panel\">"
+                + Html.heading("Page not found")
+                + "<p class=\"muted\">The page you requested does not exist.</p>"
+                + "<a class=\"btn primary\" href=\"/\">Go home</a></div>";
+        byte[] bytes = Html.page("Not Found", body).getBytes(StandardCharsets.UTF_8);
         ex.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
         ex.sendResponseHeaders(404, bytes.length);
         ex.getResponseBody().write(bytes);
@@ -544,7 +614,6 @@ public class WebServer {
         try {
             return LocalDateTime.parse(s, DT_INPUT);
         } catch (DateTimeParseException e) {
-            // fallback: also try the display format
             try { return LocalDateTime.parse(s, DT_DISPLAY); }
             catch (DateTimeParseException e2) { return null; }
         }
