@@ -85,17 +85,17 @@ public class AuthService {
 
     /** Convenience used when admin deletes a Customer that has a linked User. */
     public void removeUserByCustomerId(int customerId) {
-        User toRemove = null;
+        User found = null;
         for (User u : users) {
             if (u.getCustomerId() != null && u.getCustomerId() == customerId) {
-                toRemove = u;
+                found = u;
                 break;
             }
         }
-        if (toRemove != null) {
-            sessions.entrySet().removeIf(e -> e.getValue().equals(toRemove.getId()));
-            users.remove(toRemove);
-        }
+        if (found == null) return;
+        final int userId = found.getId();
+        sessions.entrySet().removeIf(e -> e.getValue().equals(userId));
+        users.remove(found);
     }
 
     // ============================================================
