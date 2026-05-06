@@ -6,24 +6,34 @@
  *   2. PORT environment variable (used by Render, Railway, Heroku, etc.)
  *   3. Default 8080 (for local development)
  *
+ * Default admin login (created automatically on first start):
+ *     Username: redimema
+ *     Password: Tirana#1
+ *
  * Local usage:
  *     javac *.java
  *     java Main           # http://localhost:8080
  *     java Main 9090      # http://localhost:9090
- *
- * Cloud usage:
- *     The platform sets PORT automatically. Just `java Main`.
  */
 public class Main {
+
+    // Change these to use a different default admin account.
+    private static final String ADMIN_USERNAME = "redimema";
+    private static final String ADMIN_PASSWORD = "Tirana#1";
 
     public static void main(String[] args) throws Exception {
         int port = resolvePort(args);
 
-        BookingSystem system = new BookingSystem();
-        system.loadSampleData();
+        BookingSystem booking = new BookingSystem();
+        booking.loadSampleData();
 
-        WebServer server = new WebServer(system, port);
+        AuthService auth = new AuthService(booking);
+        auth.seedAdmin(ADMIN_USERNAME, ADMIN_PASSWORD);
+
+        WebServer server = new WebServer(booking, auth, port);
         server.start();
+
+        System.out.println("Default admin login: " + ADMIN_USERNAME + " / " + ADMIN_PASSWORD);
     }
 
     private static int resolvePort(String[] args) {

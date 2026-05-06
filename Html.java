@@ -1,6 +1,7 @@
 /**
- * HTML rendering helpers: page layout, escaping, and shared CSS.
- * Keeps WebServer.java focused on routes; visual styling lives here.
+ * HTML rendering helpers: page layout, escaping, role-aware navigation,
+ * and shared CSS. Keeps WebServer.java focused on routes; visual styling
+ * lives here.
  */
 public class Html {
 
@@ -23,8 +24,11 @@ public class Html {
         return sb.toString();
     }
 
-    /** Wrap inner HTML in the shared page layout. */
-    public static String page(String title, String body) {
+    /**
+     * Wrap inner HTML in the shared page layout.
+     * @param user current logged-in user, or null if not logged in
+     */
+    public static String page(String title, String body, User user) {
         return "<!DOCTYPE html>\n"
                 + "<html lang=\"en\">\n"
                 + "<head>\n"
@@ -40,18 +44,11 @@ public class Html {
                 + "<body>\n"
                 + "  <header class=\"site-header\">\n"
                 + "    <div class=\"site-header-inner\">\n"
-                + "      <a class=\"brand\" href=\"/\">"
+                + "      <a class=\"brand\" href=\"" + brandHref(user) + "\">"
                 +        logoSvg()
                 +        "<span class=\"brand-name\">MatchTicket</span>"
                 +      "</a>\n"
-                + "      <nav class=\"site-nav\">\n"
-                + "        <a href=\"/\">Home</a>\n"
-                + "        <a href=\"/customers\">Customers</a>\n"
-                + "        <a href=\"/teams\">Teams</a>\n"
-                + "        <a href=\"/matches\">Matches</a>\n"
-                + "        <a href=\"/tickets\">Tickets</a>\n"
-                + "        <a href=\"/reports\">Reports</a>\n"
-                + "      </nav>\n"
+                +      nav(user)
                 + "    </div>\n"
                 + "  </header>\n"
                 + "  <main class=\"site-main\">\n"
@@ -63,6 +60,46 @@ public class Html {
                 + "  </footer>\n"
                 + "</body>\n"
                 + "</html>";
+    }
+
+    private static String brandHref(User user) {
+        return user == null ? "/login" : "/";
+    }
+
+    /** Role-aware navigation. */
+    private static String nav(User user) {
+        StringBuilder nav = new StringBuilder("<nav class=\"site-nav\">");
+        if (user == null) {
+            nav.append("<a href=\"/login\">Login</a>");
+            nav.append("<a href=\"/register\">Register</a>");
+        } else if (user.isAdmin()) {
+            nav.append("<a href=\"/\">Home</a>");
+            nav.append("<a href=\"/customers\">Customers</a>");
+            nav.append("<a href=\"/teams\">Teams</a>");
+            nav.append("<a href=\"/matches\">Matches</a>");
+            nav.append("<a href=\"/tickets\">Tickets</a>");
+            nav.append("<a href=\"/users\">Users</a>");
+            nav.append("<a href=\"/reports\">Reports</a>");
+            nav.append(userBadge(user, "ADMIN"));
+            nav.append("<a class=\"nav-logout\" href=\"/logout\">Logout</a>");
+        } else { // CLIENT
+            nav.append("<a href=\"/\">Home</a>");
+            nav.append("<a href=\"/matches\">Matches</a>");
+            nav.append("<a href=\"/tickets/book\">Book ticket</a>");
+            nav.append("<a href=\"/my-tickets\">My tickets</a>");
+            nav.append("<a href=\"/profile\">My profile</a>");
+            nav.append(userBadge(user, "CLIENT"));
+            nav.append("<a class=\"nav-logout\" href=\"/logout\">Logout</a>");
+        }
+        nav.append("</nav>");
+        return nav.toString();
+    }
+
+    private static String userBadge(User user, String roleLabel) {
+        return "<span class=\"user-badge\">"
+             + "<span class=\"role-pill\">" + esc(roleLabel) + "</span>"
+             + esc(user.getUsername())
+             + "</span>";
     }
 
     /** Page heading used inside the white content card. */
@@ -114,7 +151,6 @@ public class Html {
     /** Inline CSS for the whole site. */
     private static String css() {
         return ""
-            // ---- design tokens ----
             + ":root{"
             + "--navy:#0f172a;--navy-2:#1e293b;"
             + "--emerald:#0f766e;--emerald-2:#0d9488;"
@@ -127,7 +163,6 @@ public class Html {
             + "--shadow-lg:0 12px 40px -10px rgba(15,23,42,.25);"
             + "--radius:14px;--radius-sm:10px;"
             + "}"
-            // ---- base ----
             + "*,*::before,*::after{box-sizing:border-box;}"
             + "html,body{margin:0;padding:0;}"
             + "body{font-family:'Inter',-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;"
@@ -136,7 +171,6 @@ public class Html {
             + "a{color:inherit;}"
             + "h1,h2,h3{margin:0;}"
             + ".muted{color:var(--muted);}"
-            // ---- header ----
             + ".site-header{background:linear-gradient(135deg,#0f172a 0%,#0b3b3a 60%,#0f766e 100%);"
                 + "color:#fff;box-shadow:var(--shadow);position:sticky;top:0;z-index:10;}"
             + ".site-header-inner{max-width:1100px;margin:0 auto;padding:18px 24px;"
@@ -144,19 +178,24 @@ public class Html {
             + ".brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-weight:800;}"
             + ".brand-name{font-size:18px;letter-spacing:.3px;}"
             + ".logo{width:30px;height:30px;color:#fff;}"
-            + ".site-nav{display:flex;gap:6px;flex-wrap:wrap;}"
+            + ".site-nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}"
             + ".site-nav a{color:rgba(255,255,255,.85);text-decoration:none;font-weight:500;font-size:14px;"
                 + "padding:8px 14px;border-radius:999px;transition:background .2s ease,color .2s ease;}"
             + ".site-nav a:hover{background:rgba(255,255,255,.12);color:#fff;}"
-            // ---- main + footer ----
+            + ".site-nav a.nav-logout{background:rgba(239,68,68,.18);color:#fecaca;}"
+            + ".site-nav a.nav-logout:hover{background:rgba(239,68,68,.32);color:#fff;}"
+            + ".user-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;"
+                + "background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);"
+                + "border-radius:999px;font-size:13px;color:#fff;font-weight:500;}"
+            + ".role-pill{font-size:10px;font-weight:700;letter-spacing:.08em;padding:2px 8px;"
+                + "background:var(--amber);color:#0f172a;border-radius:999px;}"
             + ".site-main{max-width:1100px;width:100%;margin:28px auto;padding:0 24px;flex:1;}"
             + ".site-footer{max-width:1100px;margin:32px auto 24px;padding:16px 24px;"
                 + "display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--muted);}"
-            // ---- card / panel ----
             + ".panel{background:var(--card);border-radius:var(--radius);padding:28px;"
                 + "box-shadow:var(--shadow-sm);border:1px solid var(--line);}"
+            + ".panel.narrow{max-width:460px;margin:40px auto;}"
             + ".page-title{margin-bottom:18px;font-size:24px;font-weight:700;letter-spacing:-.01em;}"
-            // ---- hero ----
             + ".hero{position:relative;border-radius:var(--radius);overflow:hidden;"
                 + "background:linear-gradient(135deg,#0f172a 0%,#0b3b3a 50%,#0f766e 100%);"
                 + "color:#fff;padding:48px 36px;margin-bottom:24px;box-shadow:var(--shadow-lg);}"
@@ -170,14 +209,12 @@ public class Html {
             + ".hero h1 .accent{color:var(--amber);}"
             + ".hero p{margin:0 0 24px;color:rgba(255,255,255,.78);font-size:16px;max-width:560px;}"
             + ".hero-actions{display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:1;}"
-            // ---- stat cards ----
             + ".stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:24px;}"
             + ".stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);"
                 + "padding:18px;transition:transform .15s ease,box-shadow .15s ease;text-decoration:none;color:inherit;display:block;}"
             + ".stat:hover{transform:translateY(-2px);box-shadow:var(--shadow);}"
             + ".stat-label{font-size:13px;color:var(--muted);font-weight:500;}"
             + ".stat-value{font-size:32px;font-weight:800;color:var(--navy);margin-top:6px;letter-spacing:-.02em;}"
-            // ---- buttons ----
             + ".btn{display:inline-flex;align-items:center;gap:6px;background:var(--navy);color:#fff;border:none;"
                 + "padding:10px 18px;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;font-weight:600;"
                 + "text-decoration:none;transition:background .15s ease,transform .15s ease,box-shadow .15s ease;"
@@ -192,7 +229,7 @@ public class Html {
             + ".btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);}"
             + ".btn.ghost:hover{background:rgba(255,255,255,.12);}"
             + ".btn.sm{padding:6px 12px;font-size:13px;}"
-            // ---- tables ----
+            + ".btn.block{display:flex;width:100%;justify-content:center;}"
             + "table{width:100%;border-collapse:separate;border-spacing:0;margin:16px 0;}"
             + "thead th{background:#f8fafc;color:var(--muted);font-size:12px;font-weight:600;"
                 + "text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:12px 14px;"
@@ -200,10 +237,9 @@ public class Html {
             + "tbody td{padding:14px;border-bottom:1px solid var(--line);font-size:14px;}"
             + "tbody tr:hover{background:#f8fafc;}"
             + "tbody tr:last-child td{border-bottom:none;}"
-            // ---- forms ----
             + "label{display:block;margin:14px 0 6px;font-weight:600;font-size:13px;color:var(--navy);}"
             + "input[type=text],input[type=email],input[type=number],input[type=tel],"
-            + "input[type=datetime-local],select,textarea{width:100%;max-width:480px;padding:10px 12px;"
+            + "input[type=password],input[type=datetime-local],select,textarea{width:100%;max-width:480px;padding:10px 12px;"
                 + "border:1px solid var(--line);border-radius:var(--radius-sm);font-size:14px;"
                 + "background:#fff;color:var(--text);font-family:inherit;"
                 + "transition:border-color .15s ease,box-shadow .15s ease;}"
@@ -211,19 +247,17 @@ public class Html {
                 + "box-shadow:0 0 0 3px rgba(15,118,110,.15);}"
             + "form.inline{display:inline;}"
             + ".form-actions{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap;}"
-            // ---- flash messages ----
             + ".flash{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-sm);"
                 + "margin-bottom:16px;font-size:14px;font-weight:500;}"
             + ".flash.ok{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;}"
             + ".flash.error{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;}"
             + ".flash-icon{font-size:18px;}"
-            // ---- badges ----
             + ".badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;"
                 + "font-weight:600;letter-spacing:.02em;}"
             + ".badge.green{background:#d1fae5;color:#065f46;}"
             + ".badge.amber{background:#fef3c7;color:#92400e;}"
             + ".badge.red{background:#fee2e2;color:#991b1b;}"
-            // ---- match cards (ticket style) ----
+            + ".badge.navy{background:#e2e8f0;color:#0f172a;}"
             + ".match-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px;margin-top:18px;}"
             + ".ticket{position:relative;background:var(--card);border-radius:var(--radius);"
                 + "border:1px solid var(--line);padding:22px;display:flex;flex-direction:column;gap:14px;"
@@ -245,11 +279,12 @@ public class Html {
                 + "padding-top:14px;margin-top:auto;}"
             + ".ticket-price{font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-.02em;}"
             + ".ticket-price small{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}"
-            // ---- empty state ----
             + ".empty{text-align:center;padding:48px 20px;color:var(--muted);}"
             + ".empty-icon{font-size:48px;margin-bottom:8px;opacity:.5;}"
             + ".empty h3{color:var(--navy);font-weight:700;font-size:18px;margin-bottom:4px;}"
-            // ---- responsive ----
+            + ".auth-hint{margin-top:18px;text-align:center;font-size:14px;color:var(--muted);}"
+            + ".auth-hint a{color:var(--emerald);font-weight:600;text-decoration:none;}"
+            + ".auth-hint a:hover{text-decoration:underline;}"
             + "@media (max-width:640px){.hero{padding:32px 24px;}.hero h1{font-size:30px;}"
                 + ".site-header-inner{padding:14px 16px;}.site-main{padding:0 16px;}.panel{padding:18px;}"
                 + ".site-nav a{padding:6px 10px;font-size:13px;}"
