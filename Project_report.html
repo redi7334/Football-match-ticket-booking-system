@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Project Report — Football Match Ticket Booking System</title>
+<style>
+  @page { size: A4; margin: 2.5cm; }
+  body {
+    font-family: "Calibri", "Arial", sans-serif;
+    font-size: 11pt;
+    line-height: 1.55;
+    color: #0f172a;
+    margin: 0;
+  }
+  .page {
+    max-width: 17cm;
+    margin: 0 auto;
+    padding: 1cm 0;
+  }
+  .page-break { page-break-before: always; }
+  .cover {
+    text-align: center;
+    padding-top: 4cm;
+    page-break-after: always;
+  }
+  .cover .uni { font-size: 20pt; font-weight: bold; letter-spacing: 1px; margin-bottom: 0.4cm; }
+  .cover .faculty { font-size: 14pt; margin-bottom: 0.2cm; }
+  .cover .course { font-size: 13pt; font-style: italic; color: #475569; margin-bottom: 4cm; }
+  .cover .label { font-size: 18pt; font-weight: bold; color: #0f766e; margin-bottom: 0.4cm; letter-spacing: 1px; }
+  .cover .title { font-size: 22pt; font-weight: bold; margin-bottom: 0.3cm; }
+  .cover .subtitle { font-size: 13pt; font-style: italic; color: #475569; margin-bottom: 4cm; }
+  .cover .members-label { font-size: 13pt; font-weight: bold; margin-bottom: 0.3cm; }
+  .cover .member { font-size: 12pt; margin-bottom: 0.15cm; }
+  .cover .footer { margin-top: 3cm; font-size: 12pt; }
+  .cover .footer .small { font-size: 10pt; color: #64748b; font-style: italic; margin-top: 0.4cm; }
+
+  h1 {
+    font-size: 16pt;
+    color: #0f766e;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.2cm;
+    margin-top: 1cm;
+    margin-bottom: 0.4cm;
+  }
+  h2 {
+    font-size: 13pt;
+    color: #0f172a;
+    margin-top: 0.7cm;
+    margin-bottom: 0.25cm;
+  }
+  p {
+    text-align: justify;
+    margin: 0 0 0.35cm;
+  }
+  ul {
+    margin: 0.25cm 0 0.5cm 0;
+    padding-left: 0.8cm;
+  }
+  ul li {
+    margin-bottom: 0.18cm;
+    text-align: justify;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.4cm 0;
+    font-size: 10.5pt;
+  }
+  th, td {
+    border: 1px solid #cbd5e1;
+    padding: 6pt 8pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #e2e8f0;
+    font-weight: bold;
+  }
+  td.center, th.center { text-align: center; }
+  strong.role { color: #0f766e; }
+</style>
+</head>
+<body>
+
+<!-- ============================== COVER ============================== -->
+<div class="cover">
+  <div class="uni">UNIVERSITY METROPOLITAN TIRANA</div>
+  <div class="faculty">Faculty of Economy</div>
+  <div class="course">Programming II</div>
+
+  <div class="label">COURSE PROJECT REPORT</div>
+  <div class="title">Football Match Ticket Booking System</div>
+  <div class="subtitle">An online booking platform built in Java</div>
+
+  <div class="members-label">Group Members</div>
+  <div class="member">Redi Mema</div>
+  <div class="member">Dhjonis Tushe</div>
+  <div class="member">Aldo Cjapi</div>
+
+  <div class="footer">
+    Lecturer: Prof. Ndricim Topalli<br>
+    Academic Year 2025–2026
+    <div class="small">Tirana, May 2026</div>
+  </div>
+</div>
+
+<!-- ============================== BODY ============================== -->
+<div class="page">
+
+<h1>1. Introduction</h1>
+<p>This report documents the design, implementation, and deployment of a web-based Football Match Ticket Booking System developed as a course project for Programming II. The application allows football fans to register, browse upcoming matches, and book tickets online, while giving administrators full control over teams, fixtures, customers, and bookings.</p>
+<p>The project was chosen because online ticketing is a familiar, real-world domain that combines several core concepts of object-oriented programming: encapsulation of state and behavior in dedicated classes, clear separation between data and logic, association between objects (a Ticket links a Customer with a Match), and a service layer that coordinates them. It also offered an opportunity to take the assignment one step further by deploying the result on the public internet rather than only running it locally.</p>
+<p>The system is written entirely in Java using only the standard JDK, with no external libraries or frameworks. The user interface is delivered as HTML pages served by an embedded HTTP server included in the JDK. The result is a complete, self-contained web application that can be compiled with a single command and accessed from any browser.</p>
+
+<h1>2. Problem Statement and Requirements Analysis</h1>
+<p>The problem addressed is the management of football-match ticket sales for a small club or league office. Without a dedicated system, the office relies on spreadsheets and manual lists to track which customer has booked which seat, leading to double-bookings, lost data, and slow service. A simple web application removes these issues by storing all data in one place and exposing clear, role-restricted operations.</p>
+
+<h2>2.1 Functional requirements</h2>
+<ul>
+  <li>Manage customers: register, edit, and delete customer profiles (admin), or self-register as a client.</li>
+  <li>Manage teams: register and edit football teams (admin only).</li>
+  <li>Manage matches: schedule new fixtures, edit details such as date, stadium, price, and seat capacity, and delete matches (admin only).</li>
+  <li>Browse matches: any signed-in user can see upcoming and past fixtures with availability indicators.</li>
+  <li>Book tickets: clients book a single ticket for themselves; admins can book on behalf of any customer.</li>
+  <li>Cancel tickets: clients can cancel their own tickets; admins can cancel any ticket.</li>
+  <li>Authentication and authorization: every action requires a login; clients and admins see different menus and have different permissions.</li>
+  <li>Reports: admins see live counts of customers, teams, matches, tickets, and total revenue.</li>
+</ul>
+
+<h2>2.2 Non-functional requirements</h2>
+<ul>
+  <li>Implemented in pure Java with no external libraries, so the entire project compiles with a single <code>javac</code> command.</li>
+  <li>Accessible from any modern browser; no client installation required.</li>
+  <li>Passwords stored hashed (never in plaintext) and sessions managed through HTTP-only cookies.</li>
+  <li>Deployable to a public URL through a Docker container and a free hosting platform.</li>
+  <li>Code organized in small, single-responsibility classes to support a clean, maintainable design.</li>
+</ul>
+
+<h2>2.3 Actors</h2>
+<p>Two roles interact with the system. The <strong class="role">administrator</strong> manages all data and oversees bookings. The <strong class="role">client</strong> is a regular user who self-registers, browses matches, and books tickets for personal use. The system never allows a client to view other clients' data or to perform admin operations.</p>
+
+<h1>3. System Design</h1>
+<p>The system is built around object-oriented principles. Each entity in the domain has its own class that encapsulates its data and behavior, while a central service object coordinates the relationships between them. The web layer talks to the model only through service methods; it never reaches inside the objects directly.</p>
+
+<h2>3.1 Class structure</h2>
+<p>The application is composed of ten Java classes grouped into three layers. The model layer represents the business entities. The service layer holds the data and exposes operations on it. The presentation layer translates HTTP requests into service calls and renders HTML.</p>
+<ul>
+  <li><strong>Customer</strong> — a person who can book tickets. Stores name, email, phone, and a unique ID.</li>
+  <li><strong>Team</strong> — a football club with a name and home city.</li>
+  <li><strong>Match</strong> — a scheduled fixture between two teams. Owns the ticket price and the available-seat count, with methods to reserve and release seats.</li>
+  <li><strong>Ticket</strong> — a booked seat that links a Customer to a Match, with a unique seat number and a booking timestamp.</li>
+  <li><strong>User</strong> — a login account with a role (ADMIN or CLIENT). Client users are linked to a Customer profile.</li>
+  <li><strong>BookingSystem</strong> — the central service. Holds the lists of customers, teams, matches, and tickets, and exposes register/find/update/remove and ticket-booking operations.</li>
+  <li><strong>AuthService</strong> — manages users and login sessions, hashes passwords, and links new clients to a Customer record.</li>
+  <li><strong>WebServer</strong> — the HTTP layer. Defines all routes, authenticates requests, enforces role restrictions, and renders pages.</li>
+  <li><strong>Html</strong> — helpers for HTML escaping, page layout, role-aware navigation, and inline CSS.</li>
+  <li><strong>Main</strong> — the entry point. Builds the system, seeds the default admin, and starts the web server.</li>
+</ul>
+
+<h2>3.2 Object relationships</h2>
+<p>A <strong>Match</strong> owns references to two <strong>Team</strong> objects (home and away). A <strong>Ticket</strong> owns references to one Match and one Customer, capturing the seat number and price at the moment of booking. A client <strong>User</strong> references the ID of its linked Customer. The <strong>BookingSystem</strong> owns the master lists and is the single source of truth for the application state. <strong>AuthService</strong> owns the list of Users and the active sessions; it calls into BookingSystem when a self-registering client needs a Customer record created.</p>
+
+<h2>3.3 Role-based access matrix</h2>
+<p>The two roles have different rights, summarized below. Each row is enforced in WebServer through dedicated authentication and authorization checks.</p>
+<table>
+  <thead>
+    <tr><th>Operation</th><th class="center">Admin</th><th class="center">Client</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Manage teams</td><td class="center">Yes</td><td class="center">No</td></tr>
+    <tr><td>Schedule / edit / delete match</td><td class="center">Yes</td><td class="center">No</td></tr>
+    <tr><td>Browse matches</td><td class="center">Yes</td><td class="center">Yes</td></tr>
+    <tr><td>Manage all customers</td><td class="center">Yes</td><td class="center">No</td></tr>
+    <tr><td>Edit own profile</td><td class="center">Yes</td><td class="center">Yes</td></tr>
+    <tr><td>Book ticket for any customer</td><td class="center">Yes</td><td class="center">No</td></tr>
+    <tr><td>Book ticket for self</td><td class="center">Yes</td><td class="center">Yes</td></tr>
+    <tr><td>View all tickets</td><td class="center">Yes</td><td class="center">No</td></tr>
+    <tr><td>View own tickets</td><td class="center">Yes</td><td class="center">Yes</td></tr>
+    <tr><td>Cancel any ticket</td><td class="center">Yes</td><td class="center">No</td></tr>
+    <tr><td>Cancel own ticket</td><td class="center">Yes</td><td class="center">Yes</td></tr>
+    <tr><td>View reports</td><td class="center">Yes</td><td class="center">No</td></tr>
+    <tr><td>Manage user accounts</td><td class="center">Yes</td><td class="center">No</td></tr>
+  </tbody>
+</table>
+
+<h1>4. Implementation</h1>
+<p>The application uses only the standard Java Development Kit, version 17. No build tool (Maven, Gradle) and no third-party libraries are required. All ten source files compile into bytecode through a single <code>javac *.java</code> command, and the program runs with <code>java Main</code>.</p>
+
+<h2>4.1 Web layer</h2>
+<p>The HTTP server is the <code>com.sun.net.httpserver.HttpServer</code> class included in the JDK. The <strong>WebServer</strong> class registers a handler for each top-level path (<code>/login</code>, <code>/matches</code>, <code>/tickets</code>, etc.) and dispatches requests by method (GET or POST). HTML responses are built as plain Strings and sent back with the appropriate content type. After every successful POST the server replies with an HTTP 303 redirect, which prevents accidental double-submissions when the user refreshes the page.</p>
+<p>All visible text rendered into HTML is passed through <code>Html.esc</code>, an escaping function that replaces special characters with their HTML entities. This eliminates the risk of cross-site scripting from user-supplied values such as names, team names, and stadium names.</p>
+
+<h2>4.2 Data persistence</h2>
+<p>All state lives in memory inside the BookingSystem and AuthService instances, stored in <code>ArrayList</code> collections. This decision keeps the project simple and dependency-free; the trade-off is that data is reset on every server restart. Sample teams, matches, and customers are loaded automatically at startup so the application is immediately usable.</p>
+
+<h2>4.3 User interface</h2>
+<p>Pages share a common layout produced by <code>Html.page</code>. The header uses a navy-to-teal gradient with a custom SVG logo. Navigation changes by role: an unauthenticated visitor sees only Login and Register; a client sees Home, Matches, Book ticket, My tickets, and My profile; an administrator sees the full menu plus Customers, Teams, Tickets, Users, and Reports. Match listings are rendered as ticket-style cards with rounded corners and an availability badge (Available, Few seats left, or Sold out), giving the interface a clear thematic identity.</p>
+
+<h1>5. Authentication and Authorization</h1>
+<p>Authentication is implemented entirely inside <strong>AuthService</strong>. Passwords are stored as salted SHA-256 hashes: each user has a 16-byte random salt generated at registration, and the stored value is the hex-encoded digest of <em>salt</em> concatenated with the plaintext password. Plaintext passwords are never written to memory beyond the immediate verification step.</p>
+<p>After a successful login, the server generates a 32-byte random session identifier and stores the mapping from session ID to user ID in a <code>ConcurrentHashMap</code>. The session ID is sent back to the browser as an HTTP cookie named <code>MTSESSION</code>, marked <code>HttpOnly</code> and <code>SameSite=Lax</code>, with a 24-hour lifetime. On every subsequent request the WebServer reads the cookie, looks up the user, and either serves the page, redirects to the login form, or returns an HTTP 403 Forbidden response if the role does not permit the action.</p>
+
+<h1>6. Deployment</h1>
+<p>A small <code>Dockerfile</code> based on the official Eclipse Temurin Java 17 image copies the source files, compiles them with <code>javac</code>, and runs <code>java Main</code>. Cloud platforms such as Render set a <code>PORT</code> environment variable that the application reads at startup, falling back to 8080 for local development. The repository is hosted on GitHub; pushing a new commit triggers an automatic rebuild and redeploy on Render. The same Dockerfile works without modification on other Java-friendly platforms such as Railway, Fly.io, and Google Cloud Run.</p>
+
+<h1>7. Team Contributions</h1>
+<p>The project was developed by a group of three students who contributed equally to all phases of the work. Design discussions, implementation tasks, and documentation were divided collaboratively, with each member reviewing the others' work and participating in pair-programming sessions for the more challenging parts of the system.</p>
+<ul>
+  <li><strong>Redi Mema</strong> — contributed to system design, implementation, and documentation.</li>
+  <li><strong>Dhjonis Tushe</strong> — contributed to system design, implementation, and documentation.</li>
+  <li><strong>Aldo Cjapi</strong> — contributed to system design, implementation, and documentation.</li>
+</ul>
+<p>All members participated in defending the project orally and are equally familiar with every part of the codebase.</p>
+
+<h1>8. Conclusion</h1>
+<p>The Football Match Ticket Booking System satisfies the goals set out at the beginning of the project. It demonstrates the principles of object-oriented programming through a clean separation of model, service, and presentation layers, with each responsibility encapsulated in its own class. It also goes beyond the minimum requirements by offering a real graphical interface served over HTTP, role-based authentication, and deployment to a public URL.</p>
+<p>Possible improvements for future versions include persisting data to a database (for example SQLite or PostgreSQL) so that bookings survive a restart, sending email confirmations after a successful booking, and adding payment integration through a service such as Stripe. The current architecture, with its clearly separated layers, would accommodate these additions without significant refactoring.</p>
+
+</div>
+</body>
+</html>
